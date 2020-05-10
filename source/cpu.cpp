@@ -360,7 +360,43 @@ void cpuEmulation(void){
 	unsigned short operand = 0;
 
 	instruction = readByte(regs.pc++);
-	printf("instruction: %2x\n",instruction);
+
+	switch(instructions[instruction].openrandlength){
+		case 1:
+			operand = (unsigned short)readByte(regs.pc);
+			break;
+		case 2:
+			operand = readShort(regs.pc);
+			break;
+	}
+
+	regs.pc += instructions[instruction].openrandlength;
+
+	//for debug
+	printf("opcode: %x, ",instruction);
+	switch(instructions[instruction].openrandlength){
+		case 0:
+			printf("operand: None\n");
+			break;
+		case 1:
+			printf("operand: %1x\n",operand);
+			break;
+		case 2:
+			printf("operand: %2x\n",operand);
+			break;
+	}
+
+	switch(instructions[instruction].openrandlength){
+		case 0:
+			((void (*)(void))instructions[instruction].handler)();
+			break;	
+		case 1:
+			((void (*)(unsigned char))instructions[instruction].handler)((unsigned char)operand);
+			break;
+		case 2:
+			((void (*)(unsigned char))instructions[instruction].handler)(operand);
+			break;
+	}
 
 }
 

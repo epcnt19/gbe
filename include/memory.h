@@ -48,5 +48,6 @@ enum romType {
 extern char *romTypeString[];
 extern void writeByte(unsigned char address,unsigned char value);
 extern unsigned char readByte(unsigned short address);
+extern unsigned short readShort(unsigned short address);
 extern int loadRom(char *filepath);
 #endif

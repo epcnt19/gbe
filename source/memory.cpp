@@ -171,6 +171,11 @@ unsigned char readByte(unsigned short address){
 }
 
 
+unsigned short readShort(unsigned short address){
+	return readByte(address+1) << 8 | readByte(address);
+}
+
+
 void writeByte(unsigned char address,unsigned char value){
 	
 	if(address >= 0xa000 && address <= 0xbfff){
