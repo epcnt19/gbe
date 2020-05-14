@@ -56,7 +56,6 @@ struct instruction {
 
 extern void cpuEmulation(void);
 extern void reset(void);
-extern void nop(void);
 extern struct registers regs;
 extern struct interrupt interrupt;
 extern struct instruction instructions[];

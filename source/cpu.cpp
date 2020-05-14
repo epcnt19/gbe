@@ -4,9 +4,107 @@
 #include "screen.h"
 #include "input.h"
 
+#define FLAGS_ZERO (1 << 7)
+#define FLAGS_NEGATIVE (1 << 6)
+#define FLAGS_HALFCARRY (1 << 5)
+#define FLAGS_CARRY (1 << 4)
+
+#define FLAGS_ISZERO (regs.f & FLAGS_ZERO)
+#define FLAGS_ISNEGATIVE (regs.f & FLAGS_NEGATIVE)
+#define FLAGS_ISCARRY (regs.f & FLAGS_CARRY)
+#define FLAGS_ISHALFCARRY (regs.f & FLAGS_HALFCARRY)
+
+#define FLAGS_ISSET(x) (regs.f & (x))
+#define FLAGS_SET(x) (regs.f |= (x))
+#define FLAGS_CLEAR(x) (regs.f &= ~(x))
+
 //how to use: regs.af = 0xdead;
 struct registers regs;
 struct interrupt interrupt;
+unsigned long ticks;
+
+
+unsigned char calc_dec(unsigned char value){
+	if(value & 0x0f){
+		FLAGS_CLEAR(FLAGS_HALFCARRY);
+	}else{
+		FLAGS_SET(FLAGS_HALFCARRY);	
+	}
+
+	value--;
+
+	if(value){
+		FLAGS_CLEAR(FLAGS_ZERO);
+	}else{
+		FLAGS_SET(FLAGS_ZERO);
+	}
+
+	FLAGS_SET(FLAGS_NEGATIVE);
+	return value;
+}
+
+
+void calc_xor(unsigned char value){
+	regs.a ^= regs.a;
+
+	if(regs.a){
+		FLAGS_CLEAR(FLAGS_ZERO);
+	}else{
+		FLAGS_SET(FLAGS_ZERO);
+	}
+
+	FLAGS_CLEAR(FLAGS_NEGATIVE | FLAGS_HALFCARRY | FLAGS_CARRY);
+}
+
+
+// 0x00
+void nop(void){}
+
+// 0x05
+void dec_b(void){
+	calc_dec(regs.b);
+}
+
+// 0x06
+void ld_b_n(unsigned char operand){
+	regs.b = operand;
+}
+
+// 0x0e
+void ld_c_n(unsigned char operand){
+	regs.c = operand;
+}
+
+// 0x20
+void jr_nz_n(unsigned char operand){
+	if(FLAGS_ISZERO){
+		ticks += 8;
+	}else{
+		regs.pc += (signed char)operand;
+		ticks += 12;
+	}
+}
+
+// 0x21
+void ld_hl_nn(unsigned short operand){
+	regs.hl = operand;
+}
+
+// 0x32
+void ld_sp_n(unsigned short operand){
+	regs.sp = operand;
+}
+
+// 0xaf
+void xor_a(void){
+	calc_xor(regs.a);
+}
+
+// 0xc3
+void jp_nn(unsigned short operand){
+	regs.pc = operand;
+}
+
 
 struct instruction instructions[] = {
 	{"NOP",0,(void *)&nop},			//0x00
@@ -14,8 +112,8 @@ struct instruction instructions[] = {
 	{"LD (BC), A",0,NULL},			//0x02
 	{"INC BC",0,NULL},				//0x03
 	{"INC B",0,NULL},				//0x04
-	{"DEC B",0,NULL},				//0x05
-	{"LD B, 0x%02x",1,NULL},		//0x06
+	{"DEC B",0,(void *)&dec_b},				//0x05
+	{"LD B, 0x%02x",1,(void *)&ld_b_n},		//0x06
 	{"RLCA",0,NULL},				//0x07
 	{"LD (0x%04x), SP",2,NULL},		//0x08
 	{"ADD HL, BC",0,NULL},			//0x09
@@ -23,7 +121,7 @@ struct instruction instructions[] = {
 	{"DEC BC",0,NULL},				//0x0b
 	{"INC C",0,NULL},				//0x0c
 	{"DEC C",0,NULL},				//0x0d
-	{"LD C, 0x%02x",1,NULL},		//0x0e
+	{"LD C, 0x%02x",1,(void *)&ld_c_n},		//0x0e
 	{"RRCA",0,NULL},				//0x0f
 	{"STOP",1,NULL},				//0x10
 	{"LD DE, 0x%04x",2,NULL},		//0x11
@@ -41,8 +139,8 @@ struct instruction instructions[] = {
 	{"DEC E",0,NULL},				//0x1d
 	{"LD E, 0x%02x",1,NULL},		//0x1e
 	{"RRA",0,NULL},					//0x1f
-	{"JR NZ, 0x%02x",1,NULL},		//0x20
-	{"LD HL, 0x%04x",2,NULL},		//0x21
+	{"JR NZ, 0x%02x",1,(void *)&jr_nz_n},		//0x20
+	{"LD HL, 0x%04x",2,(void *)&ld_hl_nn},		//0x21
 	{"LDI (HL), A",0,NULL},			//0x22
 	{"INC HL",0,NULL},				//0x23
 	{"INC H",0,NULL},				//0x24
@@ -59,7 +157,7 @@ struct instruction instructions[] = {
 	{"CPL",0,NULL},					//0x2f
 	{"JR NC, 0x%02x",1,NULL},		//0x30
 	{"LD SP, 0x%04x",2,NULL},		//0x31
-	{"LDD (HL), A",0,NULL},			//0x32
+	{"LDD (HL), A",0,(void *)&ld_sp_n},			//0x32
 	{"INC SP",0,NULL},				//0x33
 	{"INC (HL)",0,NULL},			//0x34
 	{"DEC (HL)",0,NULL},			//0x35
@@ -184,7 +282,7 @@ struct instruction instructions[] = {
 	{"XOR H",0,NULL},				//0xac
 	{"XOR L",0,NULL},				//0xad
 	{"XOR (HL)",0,NULL},			//0xae
-	{"XOR A",0,NULL},				//0xaf
+	{"XOR A",0,(void *)&xor_a},				//0xaf
 	{"OR B",0,NULL},				//0xb0
 	{"OR C",0,NULL},				//0xb1
 	{"OR D",0,NULL},				//0xb2
@@ -204,7 +302,7 @@ struct instruction instructions[] = {
 	{"RET NZ",0,NULL},				//0xc0
 	{"POP BC",0,NULL},				//0xc1
 	{"JP NZ, 0x%04x",2,NULL},		//0xc2
-	{"JP 0x%04x",2,NULL},			//0xc3
+	{"JP 0x%04x",2,(void *)&jp_nn},			//0xc3
 	{"CALL NZ, 0x%04x",2,NULL},		//0xc4
 	{"PUSH BC",0,NULL},				//0xc5
 	{"ADD A, 0x%02x",1,NULL},		//0xc6
@@ -321,6 +419,8 @@ void reset(void){
 	spritePalette[1][2] = palette[2];
 	spritePalette[1][3] = palette[3];
 
+	ticks = 0;
+
 	writeByte(0xff05,0x00);
 	writeByte(0xff06,0x00);
 	writeByte(0xff07,0x00);
@@ -373,19 +473,23 @@ void cpuEmulation(void){
 	regs.pc += instructions[instruction].openrandlength;
 
 	//for debug
-	printf("opcode: %x, ",instruction);
+	printf("opcode: 0x%x, ",instruction);
 	switch(instructions[instruction].openrandlength){
 		case 0:
-			printf("operand: None\n");
+			printf("operand: None");
 			break;
 		case 1:
-			printf("operand: %1x\n",operand);
+			printf("operand: 0x%1x",operand);
 			break;
 		case 2:
-			printf("operand: %2x\n",operand);
+			printf("operand: 0x%2x",operand);
 			break;
 	}
-
+		
+	printf("\t[");
+	printf(instructions[instruction].disassembly,operand);
+	printf("]\n");
+	
 	switch(instructions[instruction].openrandlength){
 		case 0:
 			((void (*)(void))instructions[instruction].handler)();
@@ -394,13 +498,8 @@ void cpuEmulation(void){
 			((void (*)(unsigned char))instructions[instruction].handler)((unsigned char)operand);
 			break;
 		case 2:
-			((void (*)(unsigned char))instructions[instruction].handler)(operand);
+			((void (*)(unsigned short))instructions[instruction].handler)(operand);
 			break;
 	}
 
-}
-
-
-void nop(void){
-	printf("[nop]\n");
 }
