@@ -17,6 +17,81 @@ void quit(void){
 }
 
 
+#define INTERRUPTS_VBLANK	(1 << 0)
+#define INTERRUPTS_LCDSTAT	(1 << 1)
+#define INTERRUPTS_TIMER	(1 << 2)
+#define INTERRUPTS_SERIAL	(1 << 3)
+#define INTERRUPTS_JOYPAD	(1 << 4)
+
+enum gpuMode {
+	GPU_MODE_HBLANK = 0,
+	GPU_MODE_VBLAK = 1,
+	GPU_MODE_OAM = 2,
+	GPU_MODE_VRAM = 3
+};
+
+void gpuEmulation(void){
+	static gpuMode gpuMode = GPU_MODE_HBLANK;	
+	static int lastTicks = 0;
+	gpu.tick += ticks - lastTicks;
+	lastTicks = ticks;
+
+	switch(gpuMode){
+		case GPU_MODE_HBLANK:
+			if(gpu.tick >= 204){
+				gpu.scanline++;
+				if(gpu.scanline == 143){
+					if(interrupt.enable & INTERRUPTS_VBLANK)
+						interrupt.flags |= INTERRUPTS_VBLANK;
+					gpuMode = GPU_MODE_VBLAK;
+				}else{
+					gpuMode = GPU_MODE_OAM;
+				}
+				gpu.tick -= 204;
+			}
+			break;
+
+		case GPU_MODE_VBLAK:
+			if(gpu.tick >= 456){
+				gpu.scanline++;
+				if(gpu.scanline > 153){
+					gpu.scanline = 0;
+					gpuMode = GPU_MODE_OAM;
+				}
+				gpu.tick -= 456;
+			}
+			break;
+
+		case GPU_MODE_OAM:
+			if(gpu.tick >= 80){
+				gpuMode = GPU_MODE_VRAM;
+				gpu.tick -= 80;
+			}
+			break;
+
+		case GPU_MODE_VRAM:
+			if(gpu.tick >= 172){
+				gpuMode = GPU_MODE_HBLANK;
+				gpu.tick -= 172;
+			}
+			break;
+	}
+}
+
+
+void interruptEmulation(void){
+	//printf("interrupt.master: %d\n",interrupt.master);
+	//printf("interrupt.enable: %d\n",interrupt.enable);
+	//printf("interrupt.flags: %d\n",interrupt.flags);
+
+	if(interrupt.master && interrupt.enable && interrupt.flags){
+		unsigned char fire  = interrupt.enable & interrupt.flags;
+		printf("fire: %x\n",fire);
+		exit(1);
+	}
+}
+
+
 int main(void){
 	SDL_Window *window = NULL;
 	SDL_Renderer *renderer = NULL;
@@ -110,6 +185,8 @@ int main(void){
 		}
 	
 		cpuEmulation();
+		gpuEmulation();
+		interruptEmulation();
 
 		keys.a = false;
 		keys.b = false;
@@ -124,15 +201,5 @@ int main(void){
 	
 	SDL_DestroyWindow(window);
 	SDL_Quit();
-
-	/*
-	printf("%02x\n",romData[0x0100]);
-	printf("%02x\n",romData[0x0101]);
-	printf("%02x\n",romData[0x0102]);
-	printf("%02x\n",romData[0x0103]);
-	void (*handler)() = (void (*)())instructions[romData[0x0100]].handler;
-	handler();
-	*/
-
 	return 0;
 }

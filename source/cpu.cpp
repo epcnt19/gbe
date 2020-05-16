@@ -62,12 +62,17 @@ void nop(void){}
 
 // 0x05
 void dec_b(void){
-	calc_dec(regs.b);
+	regs.b = calc_dec(regs.b);
 }
 
 // 0x06
 void ld_b_n(unsigned char operand){
 	regs.b = operand;
+}
+
+// 0x0d
+void dec_c(void){
+	regs.c = calc_dec(regs.c);
 }
 
 // 0x0e
@@ -95,6 +100,16 @@ void ld_sp_n(unsigned short operand){
 	regs.sp = operand;
 }
 
+// 0x36
+void ld_hl_n(unsigned char operand){
+	writeByte(regs.hl,operand);
+}
+
+// 0x3e
+void ld_a_n(unsigned char operand){
+	regs.a = operand;
+}
+
 // 0xaf
 void xor_a(void){
 	calc_xor(regs.a);
@@ -103,6 +118,46 @@ void xor_a(void){
 // 0xc3
 void jp_nn(unsigned short operand){
 	regs.pc = operand;
+}
+
+// 0xe0
+void ldh_n_a(unsigned char operand){
+	writeByte(0xff00 + operand,regs.a);
+}
+
+// 0xea
+void ld_nn_a(unsigned short operand){
+	writeByte(operand,regs.a);
+}
+
+// 0xf0
+void ldh_a_n(unsigned char operand){
+	regs.a = readByte(0xff00 + operand);
+}
+
+// 0xf3
+void di(void){
+	interrupt.master = 0;
+}
+
+// 0xfe
+void cp_n(unsigned char operand){
+	FLAGS_SET(FLAGS_NEGATIVE);
+
+	if(regs.a == operand)
+		FLAGS_SET(FLAGS_ZERO);
+	else
+		FLAGS_CLEAR(FLAGS_ZERO);
+
+	if((regs.a & 0x0f) < (operand & 0x0f))
+		FLAGS_SET(FLAGS_HALFCARRY);
+	else
+		FLAGS_SET(FLAGS_HALFCARRY);
+
+	if(regs.a < operand)
+		FLAGS_SET(FLAGS_CARRY);
+	else
+		FLAGS_CLEAR(FLAGS_CARRY);
 }
 
 
@@ -120,7 +175,7 @@ struct instruction instructions[] = {
 	{"LD A, (BC)",0,NULL},			//0x0a
 	{"DEC BC",0,NULL},				//0x0b
 	{"INC C",0,NULL},				//0x0c
-	{"DEC C",0,NULL},				//0x0d
+	{"DEC C",0,(void *)&dec_c},				//0x0d
 	{"LD C, 0x%02x",1,(void *)&ld_c_n},		//0x0e
 	{"RRCA",0,NULL},				//0x0f
 	{"STOP",1,NULL},				//0x10
@@ -161,7 +216,7 @@ struct instruction instructions[] = {
 	{"INC SP",0,NULL},				//0x33
 	{"INC (HL)",0,NULL},			//0x34
 	{"DEC (HL)",0,NULL},			//0x35
-	{"LD (HL), 0x%02x",1,NULL},		//0x36
+	{"LD (HL), 0x%02x",1,(void *)&ld_hl_n},		//0x36
 	{"CCF",0,NULL},					//0x37
 	{"JR C, 0x%02x",1,NULL},		//0x38
 	{"ADD HL, SP",0,NULL},			//0x39
@@ -169,7 +224,7 @@ struct instruction instructions[] = {
 	{"DEC SP",0,NULL},				//0x3b
 	{"INC A",0,NULL},				//0x3c
 	{"DEC A",0,NULL},				//0x3d
-	{"LD A, 0x%02x",1,NULL},		//0x3e
+	{"LD A, 0x%02x",1,(void *)&ld_a_n},		//0x3e
 	{"CCF",0,NULL},					//0x3f
 	{"LD B, B",0,NULL},				//0x40
 	{"LD B, C",0,NULL},				//0x41
@@ -331,7 +386,7 @@ struct instruction instructions[] = {
 	{"UNKNOWN",0,NULL},				//0xdd
 	{"SBC 0x%02x",1,NULL},			//0xde
 	{"RST 0x18",0,NULL},			//0xdf
-	{"LD (0xff00 + 0x%02x), A",1,NULL},	//0xe0
+	{"LD (0xff00 + 0x%02x), A",1,(void *)&ldh_n_a},	//0xe0
 	{"POP HL",0,NULL},					//0xe1
 	{"LD (0xff00 + C), A",0,NULL},		//0xe2
 	{"UNKNOWN",0,NULL},					//0xe3
@@ -341,16 +396,16 @@ struct instruction instructions[] = {
 	{"RST 0x20",0,NULL},				//0xe7
 	{"ADD SP, 0x%02x",1,NULL},			//0xe8
 	{"JP HL",0,NULL},					//0xe9
-	{"LD (0x%04x), A",2,NULL},			//0xea
+	{"LD (0x%04x), A",2,(void *)&ld_nn_a},			//0xea
 	{"UNKNOWN",0,NULL},					//0xeb
 	{"UNKNOWN",0,NULL},					//0xec
 	{"UNKNOWN",0,NULL},					//0xed
 	{"XOR 0x%02x",1,NULL},				//0xee
 	{"RST 0x28",0,NULL},				//0xef
-	{"LD A, (0xff00 + 0x%02x)",1,NULL},	//0xf0
+	{"LD A, (0xff00 + 0x%02x)",1,(void *)&ldh_a_n},	//0xf0
 	{"POP AF",0,NULL},					//0xf1
 	{"LD A, (0xff00 + C)",0,NULL},		//0xf2
-	{"DI",0,NULL},						//0xf3
+	{"DI",0,(void *)di},						//0xf3
 	{"UNKNOWN",0,NULL},					//0xf4
 	{"PUSH AF",0,NULL},					//0xf5
 	{"OR 0x%02x",1,NULL},				//0xf6
@@ -361,8 +416,27 @@ struct instruction instructions[] = {
 	{"EI",0,NULL},						//0xfb
 	{"UNKNOWN",0,NULL},					//0xfc
 	{"UNKNOWN",0,NULL},					//0xfd
-	{"CP 0x%20x",1,NULL},				//0xfe
+	{"CP 0x%02x",1,(void *)&cp_n},				//0xfe
 	{"RST 0x38",0,NULL},				//0xff
+};
+
+const unsigned char instructionTicks[256] = {
+	2, 6, 4, 4, 2, 2, 4, 4, 10, 4, 4, 4, 2, 2, 4, 4, // 0x0_
+	2, 6, 4, 4, 2, 2, 4, 4,  4, 4, 4, 4, 2, 2, 4, 4, // 0x1_
+	0, 6, 4, 4, 2, 2, 4, 2,  0, 4, 4, 4, 2, 2, 4, 2, // 0x2_
+	4, 6, 4, 4, 6, 6, 6, 2,  0, 4, 4, 4, 2, 2, 4, 2, // 0x3_
+	2, 2, 2, 2, 2, 2, 4, 2,  2, 2, 2, 2, 2, 2, 4, 2, // 0x4_
+	2, 2, 2, 2, 2, 2, 4, 2,  2, 2, 2, 2, 2, 2, 4, 2, // 0x5_
+	2, 2, 2, 2, 2, 2, 4, 2,  2, 2, 2, 2, 2, 2, 4, 2, // 0x6_
+	4, 4, 4, 4, 4, 4, 2, 4,  2, 2, 2, 2, 2, 2, 4, 2, // 0x7_
+	2, 2, 2, 2, 2, 2, 4, 2,  2, 2, 2, 2, 2, 2, 4, 2, // 0x8_
+	2, 2, 2, 2, 2, 2, 4, 2,  2, 2, 2, 2, 2, 2, 4, 2, // 0x9_
+	2, 2, 2, 2, 2, 2, 4, 2,  2, 2, 2, 2, 2, 2, 4, 2, // 0xa_
+	2, 2, 2, 2, 2, 2, 4, 2,  2, 2, 2, 2, 2, 2, 4, 2, // 0xb_
+	0, 6, 0, 6, 0, 8, 4, 8,  0, 2, 0, 0, 0, 6, 4, 8, // 0xc_
+	0, 6, 0, 0, 0, 8, 4, 8,  0, 8, 0, 0, 0, 0, 4, 8, // 0xd_
+	6, 6, 4, 0, 0, 8, 4, 8,  8, 2, 8, 0, 0, 0, 4, 8, // 0xe_
+	6, 6, 4, 2, 0, 8, 4, 8,  6, 4, 8, 2, 0, 0, 4, 8  // 0xf_
 };
 
 
@@ -470,10 +544,8 @@ void cpuEmulation(void){
 			break;
 	}
 
-	regs.pc += instructions[instruction].openrandlength;
-
 	//for debug
-	printf("opcode: 0x%x, ",instruction);
+	printf("regs.pc: 0x%2x, opcode: 0x%1x, ",regs.pc-1,instruction);
 	switch(instructions[instruction].openrandlength){
 		case 0:
 			printf("operand: None");
@@ -489,7 +561,11 @@ void cpuEmulation(void){
 	printf("\t[");
 	printf(instructions[instruction].disassembly,operand);
 	printf("]\n");
-	
+
+	// printf("regs.b: %x, regs.c: %x\n",regs.b,regs.c);
+
+	regs.pc += instructions[instruction].openrandlength;
+
 	switch(instructions[instruction].openrandlength){
 		case 0:
 			((void (*)(void))instructions[instruction].handler)();
@@ -501,5 +577,7 @@ void cpuEmulation(void){
 			((void (*)(unsigned short))instructions[instruction].handler)(operand);
 			break;
 	}
+
+	ticks += instructionTicks[instruction];
 
 }
