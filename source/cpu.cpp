@@ -24,6 +24,26 @@ struct interrupt interrupt;
 unsigned long ticks;
 
 
+unsigned char calc_inc(unsigned char value){
+	if(value & 0x0f){
+		FLAGS_CLEAR(FLAGS_HALFCARRY);
+	}else{
+		FLAGS_SET(FLAGS_HALFCARRY);	
+	}
+
+	value++;
+
+	if(value){
+		FLAGS_CLEAR(FLAGS_ZERO);
+	}else{
+		FLAGS_SET(FLAGS_ZERO);
+	}
+
+	FLAGS_SET(FLAGS_NEGATIVE);
+	return value;
+}
+
+
 unsigned char calc_dec(unsigned char value){
 	if(value & 0x0f){
 		FLAGS_CLEAR(FLAGS_HALFCARRY);
@@ -70,6 +90,11 @@ void ld_b_n(unsigned char operand){
 	regs.b = operand;
 }
 
+// 0x0c
+void inc_c(void){
+	regs.c = calc_inc(regs.c);
+}
+
 // 0x0d
 void dec_c(void){
 	regs.c = calc_dec(regs.c);
@@ -95,7 +120,23 @@ void ld_hl_nn(unsigned short operand){
 	regs.hl = operand;
 }
 
+// 0x2a
+void ldi_a_hl(void){
+	regs.a = readByte(regs.hl);
+	regs.hl++;
+}
+
+// 0x31
+void ld_sp_nn(unsigned short operand){
+	regs.sp = operand;
+}
+
 // 0x32
+void ldd_hl_a(void){
+	writeByte(regs.hl,regs.a);
+	regs.hl--;
+}
+
 void ld_sp_n(unsigned short operand){
 	regs.sp = operand;
 }
@@ -123,6 +164,11 @@ void jp_nn(unsigned short operand){
 // 0xe0
 void ldh_n_a(unsigned char operand){
 	writeByte(0xff00 + operand,regs.a);
+}
+
+// 0xe2
+void ldh_c_a(void){
+	writeByte(0xff00 + regs.c,regs.a);
 }
 
 // 0xea
@@ -174,7 +220,7 @@ struct instruction instructions[] = {
 	{"ADD HL, BC",0,NULL},			//0x09
 	{"LD A, (BC)",0,NULL},			//0x0a
 	{"DEC BC",0,NULL},				//0x0b
-	{"INC C",0,NULL},				//0x0c
+	{"INC C",0,(void *)&inc_c},				//0x0c
 	{"DEC C",0,(void *)&dec_c},				//0x0d
 	{"LD C, 0x%02x",1,(void *)&ld_c_n},		//0x0e
 	{"RRCA",0,NULL},				//0x0f
@@ -204,15 +250,15 @@ struct instruction instructions[] = {
 	{"DAA",0,NULL},					//0x27
 	{"JR Z, 0x%02x",1,NULL},		//0x28
 	{"ADD HL, HL",0,NULL},			//0x29
-	{"LDI A, (HL)",0,NULL},			//0x2a
+	{"LDI A, (HL)",0,(void *)&ldi_a_hl},			//0x2a
 	{"DEC HL",0,NULL},				//0x2b
 	{"INC L",0,NULL},				//0x2c
 	{"DEC L",0,NULL},				//0x2d
 	{"LD L, 0x%02x",1,NULL},		//0x2e
 	{"CPL",0,NULL},					//0x2f
 	{"JR NC, 0x%02x",1,NULL},		//0x30
-	{"LD SP, 0x%04x",2,NULL},		//0x31
-	{"LDD (HL), A",0,(void *)&ld_sp_n},			//0x32
+	{"LD SP, 0x%04x",2,(void *)&ld_sp_nn},		//0x31
+	{"LDD (HL), A",0,(void *)&ldd_hl_a},			//0x32
 	{"INC SP",0,NULL},				//0x33
 	{"INC (HL)",0,NULL},			//0x34
 	{"DEC (HL)",0,NULL},			//0x35
@@ -388,7 +434,7 @@ struct instruction instructions[] = {
 	{"RST 0x18",0,NULL},			//0xdf
 	{"LD (0xff00 + 0x%02x), A",1,(void *)&ldh_n_a},	//0xe0
 	{"POP HL",0,NULL},					//0xe1
-	{"LD (0xff00 + C), A",0,NULL},		//0xe2
+	{"LD (0xff00 + C), A",0,(void *)&ldh_c_a},		//0xe2
 	{"UNKNOWN",0,NULL},					//0xe3
 	{"UNKNOWN",0,NULL},					//0xe4
 	{"PUSH HL",0,NULL},					//0xe5
