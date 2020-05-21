@@ -8,7 +8,7 @@ LDFLAGS		:= -lSDL2
 CPPFILES	:= $(wildcard $(SRCDIR)/*.cpp)
 
 all: $(CPPFILES)
-	$(CC) $(INCDIR) -o gbe $(CPPFILES) $(CFLAGS) $(LDFLAGS)
+	$(CC) $(INCDIR) -fsanitize=address -g3 -o gbe $(CPPFILES) $(CFLAGS) $(LDFLAGS)
 
 clean:
 	rm gbe

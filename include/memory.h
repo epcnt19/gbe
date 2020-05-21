@@ -11,7 +11,7 @@ extern unsigned char sram[0x2000];
 extern unsigned char io[0x100];
 extern unsigned char vram[0x2000];
 extern unsigned char oam[0x100];
-extern unsigned char wram[0x200];
+extern unsigned char wram[0x2000];
 extern unsigned char hram[0x80];
 
 extern unsigned char ioReset[0x100];
@@ -46,8 +46,13 @@ enum romType {
 };
 
 extern char *romTypeString[];
-extern void writeByte(unsigned char address,unsigned char value);
+extern int loadRom(char *filepath);
+
 extern unsigned char readByte(unsigned short address);
 extern unsigned short readShort(unsigned short address);
-extern int loadRom(char *filepath);
+unsigned short readShortFromStack(void);
+
+extern void writeByte(unsigned short address,unsigned char value);
+extern void writeShort(unsigned short address, unsigned short value);
+extern void writeShortToStack(unsigned short value);
 #endif

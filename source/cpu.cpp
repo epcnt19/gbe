@@ -23,6 +23,7 @@ struct registers regs;
 struct interrupt interrupt;
 unsigned long ticks;
 
+bool break_point = false;
 
 unsigned char calc_inc(unsigned char value){
 	if(value & 0x0f){
@@ -64,8 +65,36 @@ unsigned char calc_dec(unsigned char value){
 }
 
 
+void calc_and(unsigned char value){
+	regs.a &= value;
+	
+	if(regs.a){
+		FLAGS_CLEAR(FLAGS_ZERO);
+	}else{
+		FLAGS_SET(FLAGS_ZERO);
+	
+	}
+
+	FLAGS_CLEAR(FLAGS_NEGATIVE | FLAGS_CARRY);
+	FLAGS_SET(FLAGS_HALFCARRY);
+}
+
+
+void calc_or(unsigned char value){
+	regs.a |= value;
+
+	if(regs.a){
+		FLAGS_CLEAR(FLAGS_ZERO);
+	}else{
+		FLAGS_SET(FLAGS_ZERO);
+	}
+
+	FLAGS_CLEAR(FLAGS_NEGATIVE | FLAGS_HALFCARRY | FLAGS_CARRY);
+}
+
+
 void calc_xor(unsigned char value){
-	regs.a ^= regs.a;
+	regs.a ^= value;
 
 	if(regs.a){
 		FLAGS_CLEAR(FLAGS_ZERO);
@@ -80,6 +109,11 @@ void calc_xor(unsigned char value){
 // 0x00
 void nop(void){}
 
+// 0x01
+void ld_bc_nn(unsigned short operand){
+	regs.bc = operand;
+}
+
 // 0x05
 void dec_b(void){
 	regs.b = calc_dec(regs.b);
@@ -88,6 +122,11 @@ void dec_b(void){
 // 0x06
 void ld_b_n(unsigned char operand){
 	regs.b = operand;
+}
+
+// 0x0b
+void dec_bc(void){
+	regs.bc--;
 }
 
 // 0x0c
@@ -137,10 +176,6 @@ void ldd_hl_a(void){
 	regs.hl--;
 }
 
-void ld_sp_n(unsigned short operand){
-	regs.sp = operand;
-}
-
 // 0x36
 void ld_hl_n(unsigned char operand){
 	writeByte(regs.hl,operand);
@@ -151,13 +186,37 @@ void ld_a_n(unsigned char operand){
 	regs.a = operand;
 }
 
+// 0x78
+void ld_a_b(void){
+	regs.a = regs.b;
+}
+
 // 0xaf
 void xor_a(void){
 	calc_xor(regs.a);
 }
 
+// 0xb1
+void or_c(void){
+	calc_or(regs.c);
+}
+
 // 0xc3
 void jp_nn(unsigned short operand){
+	regs.pc = operand;
+}
+
+// 0xc9
+void ret(void){
+	unsigned short retaddr;
+	retaddr = readShortFromStack();
+	regs.pc = retaddr;
+	break_point = true;
+}
+
+// 0xcd
+void call_nn(unsigned short operand){
+	writeShortToStack(regs.pc);
 	regs.pc = operand;
 }
 
@@ -209,7 +268,7 @@ void cp_n(unsigned char operand){
 
 struct instruction instructions[] = {
 	{"NOP",0,(void *)&nop},			//0x00
-	{"LD BC, 0x%04X",2,NULL},		//0x01
+	{"LD BC, 0x%04X",2,(void *)&ld_bc_nn},		//0x01
 	{"LD (BC), A",0,NULL},			//0x02
 	{"INC BC",0,NULL},				//0x03
 	{"INC B",0,NULL},				//0x04
@@ -219,7 +278,7 @@ struct instruction instructions[] = {
 	{"LD (0x%04x), SP",2,NULL},		//0x08
 	{"ADD HL, BC",0,NULL},			//0x09
 	{"LD A, (BC)",0,NULL},			//0x0a
-	{"DEC BC",0,NULL},				//0x0b
+	{"DEC BC",0,(void *)&dec_bc},				//0x0b
 	{"INC C",0,(void *)&inc_c},				//0x0c
 	{"DEC C",0,(void *)&dec_c},				//0x0d
 	{"LD C, 0x%02x",1,(void *)&ld_c_n},		//0x0e
@@ -328,7 +387,7 @@ struct instruction instructions[] = {
 	{"LD (HL), L",0,NULL},			//0x75
 	{"HALT",0,NULL},				//0x76
 	{"LD (HL), A",0,NULL},			//0x77
-	{"LD A, B",0,NULL},				//0x78
+	{"LD A, B",0,(void *)&ld_a_b},				//0x78
 	{"LD A, C",0,NULL},				//0x79
 	{"LD A, D",0,NULL},				//0x7a
 	{"LD A, E",0,NULL},				//0x7b
@@ -385,7 +444,7 @@ struct instruction instructions[] = {
 	{"XOR (HL)",0,NULL},			//0xae
 	{"XOR A",0,(void *)&xor_a},				//0xaf
 	{"OR B",0,NULL},				//0xb0
-	{"OR C",0,NULL},				//0xb1
+	{"OR C",0,(void *)&or_c},				//0xb1
 	{"OR D",0,NULL},				//0xb2
 	{"OR E",0,NULL},				//0xb3
 	{"OR H",0,NULL},				//0xb4
@@ -409,11 +468,11 @@ struct instruction instructions[] = {
 	{"ADD A, 0x%02x",1,NULL},		//0xc6
 	{"RST 0x00",0,NULL},			//0xc7
 	{"RET Z",0,NULL},				//0xc8
-	{"RET",0,NULL},					//0xc9
+	{"RET",0,(void *)&ret},					//0xc9
 	{"JP Z, 0x%04x",2,NULL},		//0xca
 	{"CB %02x",1,NULL},				//0xcb
 	{"CALL Z, 0x%04x",2,NULL},		//0xcc
-	{"CALL 0x%04x",2,NULL},			//0xcd
+	{"CALL 0x%04x",2,(void *)&call_nn},			//0xcd
 	{"ADC 0x%20x",1,NULL},			//0xce
 	{"RST 0x08",0,NULL},			//0xcf
 	{"RET NC",0,NULL},				//0xd0
@@ -591,6 +650,9 @@ void cpuEmulation(void){
 	}
 
 	//for debug
+	if(break_point)
+		getchar();
+
 	printf("regs.pc: 0x%2x, opcode: 0x%1x, ",regs.pc-1,instruction);
 	switch(instructions[instruction].openrandlength){
 		case 0:
@@ -607,8 +669,6 @@ void cpuEmulation(void){
 	printf("\t[");
 	printf(instructions[instruction].disassembly,operand);
 	printf("]\n");
-
-	// printf("regs.b: %x, regs.c: %x\n",regs.b,regs.c);
 
 	regs.pc += instructions[instruction].openrandlength;
 

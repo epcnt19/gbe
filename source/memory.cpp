@@ -12,7 +12,7 @@ unsigned char vram[0x2000];
 // Switchable ROM bank
 unsigned char sram[0x2000];
 // Internal RAM
-unsigned char wram[0x200];
+unsigned char wram[0x2000];
 // Sprite Attrib Memory
 unsigned char oam[0x100];
 // I/O ports
@@ -172,11 +172,21 @@ unsigned char readByte(unsigned short address){
 
 
 unsigned short readShort(unsigned short address){
-	return readByte(address+1) << 8 | readByte(address);
+	return (readByte(address+1) << 8) | readByte(address);
+	//return readByte(address) | (readByte(address+1) << 8);
 }
 
 
-void writeByte(unsigned char address,unsigned char value){
+unsigned short readShortFromStack(void){
+	unsigned short value;
+	value = readShort(regs.sp);
+	//printf("readShortFromStack: regs.sp: %04x, value: %04x\n",regs.sp,value);
+	regs.sp += 2;
+	return value;
+}
+
+
+void writeByte(unsigned short address,unsigned char value){
 	
 	if(address >= 0xa000 && address <= 0xbfff){
 		sram[address - 0xa000] = value;
@@ -234,3 +244,15 @@ void writeByte(unsigned char address,unsigned char value){
 	}
 }
 
+	
+void writeShort(unsigned short address, unsigned short value) {
+	writeByte(address, (unsigned char)(value & 0x00ff));
+	writeByte(address + 1, (unsigned char)((value & 0xff00) >> 8));
+}
+
+
+void writeShortToStack(unsigned short value) {
+	regs.sp -= 2;
+	writeShort(regs.sp, value);
+	//printf("writeShortToStack: regs.sp: %04x, value: %04x\n",regs.sp,value);
+}
