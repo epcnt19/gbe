@@ -211,7 +211,7 @@ void ret(void){
 	unsigned short retaddr;
 	retaddr = readShortFromStack();
 	regs.pc = retaddr;
-	break_point = true;
+	//break_point = true;
 }
 
 // 0xcd
@@ -238,6 +238,11 @@ void ld_nn_a(unsigned short operand){
 // 0xf0
 void ldh_a_n(unsigned char operand){
 	regs.a = readByte(0xff00 + operand);
+}
+
+// 0xfb
+void ei(void){
+	interrupt.master = 1;
 }
 
 // 0xf3
@@ -518,7 +523,7 @@ struct instruction instructions[] = {
 	{"LD HL, SP+0x%02x",1,NULL},		//0xf8
 	{"LD SP, HL",0,NULL},				//0xf9
 	{"LD A, (0x%04x)",2,NULL},			//0xfa
-	{"EI",0,NULL},						//0xfb
+	{"EI",0,(void *)&ei},						//0xfb
 	{"UNKNOWN",0,NULL},					//0xfc
 	{"UNKNOWN",0,NULL},					//0xfd
 	{"CP 0x%02x",1,(void *)&cp_n},				//0xfe
@@ -653,16 +658,16 @@ void cpuEmulation(void){
 	if(break_point)
 		getchar();
 
-	printf("regs.pc: 0x%2x, opcode: 0x%1x, ",regs.pc-1,instruction);
+	printf("regs.pc: 0x%2x, opcode: 0x%02x, ",regs.pc-1,instruction);
 	switch(instructions[instruction].openrandlength){
 		case 0:
 			printf("operand: None");
 			break;
 		case 1:
-			printf("operand: 0x%1x",operand);
+			printf("operand: 0x%02x",operand);
 			break;
 		case 2:
-			printf("operand: 0x%2x",operand);
+			printf("operand: 0x%04x",operand);
 			break;
 	}
 		

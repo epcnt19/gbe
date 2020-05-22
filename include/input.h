@@ -35,6 +35,7 @@ struct keys {
 };
 */
 
+/*
 struct keys {
 	unsigned char start;
 	unsigned char select;
@@ -44,6 +45,34 @@ struct keys {
 	unsigned char up;
 	unsigned char left;
 	unsigned char right;
+};
+*/
+
+struct keys {
+	union { 
+		struct {
+			union {
+				unsigned char keys1;
+				struct {
+					unsigned char start;
+					unsigned char select;
+					unsigned char b;
+					unsigned char a;
+				};
+			};
+
+			union {
+				unsigned char keys2;
+				struct {
+					unsigned char down;
+					unsigned char up;
+					unsigned char left;
+					unsigned char right;
+				};
+			};
+		};
+		unsigned char c;
+	};
 };
 
 extern struct keys keys;
