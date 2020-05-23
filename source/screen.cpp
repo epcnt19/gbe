@@ -15,6 +15,7 @@ const struct rgb palette[4] = {
 	{0,0,0},
 };
 
+struct rgb framebuffer[160 * 144];
 
 void updateTile(unsigned short address, unsigned char value) {
 	address &= 0x1ffe;

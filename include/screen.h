@@ -21,6 +21,8 @@ extern struct rgb backgroundPalette[4];
 extern struct rgb spritePalette[2][4];
 extern const struct rgb palette[4];
 extern struct gpu gpu;
+extern struct rgb framebuffer[160 * 144];
+
 extern void updateTile(unsigned short address, unsigned char value);
 
 #endif

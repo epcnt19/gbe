@@ -79,6 +79,60 @@ void gpuEmulation(void){
 }
 
 
+void vblank(void){
+	/*
+	glClear(GL_COLOR_BUFFER_BIT);
+	glRasterPos2f(-1, 1);
+	glPixelZoom(1, -1);
+	glDrawPixels(160, 144, GL_RGB, GL_UNSIGNED_BYTE, framebuffer);
+	*/
+	interrupt.master = 0;
+	writeShortToStack(regs.pc);
+	regs.pc = 0x40;
+	ticks += 12;
+}
+
+
+void lcdStat(void){
+	interrupt.master = 0;
+	writeShortToStack(regs.pc);
+	regs.pc = 0x48;
+	ticks += 12;
+}
+
+
+void timer(void){
+	interrupt.master = 0;
+	writeShortToStack(regs.pc);
+	regs.pc = 0x50;
+	ticks += 12;
+}
+
+
+void serial(void){
+	interrupt.master = 0;
+	writeShortToStack(regs.pc);
+	regs.pc = 0x58;
+	ticks += 12;
+}
+
+
+void joypad(void){
+	interrupt.master = 0;
+	writeShortToStack(regs.pc);
+	regs.pc = 0x60;
+	ticks += 12;
+}
+
+
+void returnFromInterrupt(void){
+	unsigned short retaddr;
+	interrupt.master = 1;
+	retaddr = readShortFromStack();
+	regs.pc = retaddr;
+}
+
+
 void interruptEmulation(void){
 	//printf("interrupt.master: %d\n",interrupt.master);
 	//printf("interrupt.enable: %d\n",interrupt.enable);
@@ -86,8 +140,36 @@ void interruptEmulation(void){
 
 	if(interrupt.master && interrupt.enable && interrupt.flags){
 		unsigned char fire  = interrupt.enable & interrupt.flags;
-		printf("fire: %x\n",fire);
-		exit(1);
+
+		if(fire & INTERRUPTS_VBLANK){
+			interrupt.flags &= ~INTERRUPTS_VBLANK;
+			printf("fired: INTERRUPTS_VBLANK\n");
+			vblank();
+		}
+
+		if(fire & INTERRUPTS_LCDSTAT){
+			interrupt.flags &= ~INTERRUPTS_LCDSTAT;
+			printf("fired: INTERRUPTS_LCDSTAT\n");
+			lcdStat();
+		}
+
+		if(fire & INTERRUPTS_TIMER){
+			interrupt.flags &= ~INTERRUPTS_TIMER;
+			printf("fired: INTERRUPTS_TIMER\n");
+			timer();
+		}
+
+		if(fire & INTERRUPTS_SERIAL){
+			interrupt.flags &= ~INTERRUPTS_SERIAL;
+			printf("fired: INTERRUPTS_SERIAL\n");
+			serial();
+		}
+
+		if(fire & INTERRUPTS_JOYPAD){
+			interrupt.flags &= ~INTERRUPTS_JOYPAD;
+			printf("fired: INTERRUPTS_JOYPAD\n");
+			joypad();
+		}
 	}
 }
 
@@ -106,7 +188,7 @@ int main(void){
 		"gbe",
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
-		640,480,0
+		160,144,0
 	);
 
 	if(window == NULL){
