@@ -59,5 +59,5 @@ extern void reset(void);
 extern unsigned long ticks;
 extern struct registers regs;
 extern struct interrupt interrupt;
-extern struct instruction instructions[];
+extern struct instruction instructions[256];
 #endif

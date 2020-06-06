@@ -3,6 +3,7 @@
 #include "memory.h"
 #include "screen.h"
 #include "input.h"
+#include "prefix_cb.h"
 
 #define FLAGS_ZERO (1 << 7)
 #define FLAGS_NEGATIVE (1 << 6)
@@ -159,10 +160,26 @@ void ld_hl_nn(unsigned short operand){
 	regs.hl = operand;
 }
 
+// 0x28
+void jr_z_n(unsigned char operand){
+	if(FLAGS_ISZERO){
+		regs.pc += (signed char)operand;
+		ticks += 12;
+	}else{
+		ticks += 8;
+	}
+}
+
 // 0x2a
 void ldi_a_hl(void){
 	regs.a = readByte(regs.hl);
 	regs.hl++;
+}
+
+// 0x2f
+void cpl(void){
+	regs.a = ~regs.a;
+	FLAGS_SET(FLAGS_NEGATIVE|FLAGS_HALFCARRY);
 }
 
 // 0x31
@@ -176,9 +193,24 @@ void ldd_hl_a(void){
 	regs.hl--;
 }
 
+// 0x34
+void inc_hl(void){
+	writeByte(regs.hl,calc_inc(readByte(regs.hl)));
+}
+
 // 0x36
 void ld_hl_n(unsigned char operand){
 	writeByte(regs.hl,operand);
+}
+
+// 0x3c
+void inc_a(void){
+	regs.a = calc_inc(regs.a);
+}
+
+// 0x3d
+void dec_a(void){
+	regs.a = calc_dec(regs.a);
 }
 
 // 0x3e
@@ -191,6 +223,11 @@ void ld_a_b(void){
 	regs.a = regs.b;
 }
 
+// 0xa7
+void and_a(void){
+	calc_and(regs.a);
+}
+
 // 0xaf
 void xor_a(void){
 	calc_xor(regs.a);
@@ -201,9 +238,34 @@ void or_c(void){
 	calc_or(regs.c);
 }
 
+// 0xc0
+void ret_nz(void){
+	if(FLAGS_ISZERO){
+		ticks += 0;
+	}else{
+		regs.pc = readShortFromStack();
+		ticks += 20;
+	}
+}
+
+// 0xc1
+void pop_bc(void){
+	regs.bc = readShortFromStack();		
+}
+
 // 0xc3
 void jp_nn(unsigned short operand){
 	regs.pc = operand;
+}
+
+// 0xc8
+void ret_z(void){
+	if(FLAGS_ISZERO){
+		regs.pc = readShortFromStack();
+		ticks += 20;
+	}else{
+		ticks += 8;
+	}
 }
 
 // 0xc9
@@ -220,14 +282,57 @@ void call_nn(unsigned short operand){
 	regs.pc = operand;
 }
 
+// 0xc5
+void push_bc(void){
+	writeShortToStack(regs.bc);
+}
+
+// 0xd1
+void pop_de(void){
+	regs.de = readShortFromStack();		
+}
+
+// 0xd5
+void push_de(void){
+	writeShortToStack(regs.de);
+}
+
+// 0xd9
+void reti(void){
+	interrupt.master = 1;
+	regs.pc = readShortFromStack();
+}
+
 // 0xe0
 void ldh_n_a(unsigned char operand){
 	writeByte(0xff00 + operand,regs.a);
 }
 
+// 0xe1
+void pop_hl(void){
+	regs.hl = readShortFromStack();		
+}
+
 // 0xe2
 void ldh_c_a(void){
 	writeByte(0xff00 + regs.c,regs.a);
+}
+
+// 0xe5
+void push_hl(void){
+	writeShortToStack(regs.hl);
+}
+
+// 0xe6
+void and_n(unsigned char operand){
+	regs.a &= operand;
+	FLAGS_CLEAR(FLAGS_CARRY|FLAGS_NEGATIVE);
+	FLAGS_SET(FLAGS_HALFCARRY);
+	if(regs.a){
+		FLAGS_CLEAR(FLAGS_ZERO);
+	}else{
+		FLAGS_SET(FLAGS_ZERO);
+	}
 }
 
 // 0xea
@@ -240,6 +345,16 @@ void ldh_a_n(unsigned char operand){
 	regs.a = readByte(0xff00 + operand);
 }
 
+// 0xf1
+void pop_af(void){
+	regs.af = readShortFromStack();
+}
+
+// 0xfa
+void ld_a_nn(unsigned short operand){
+	regs.a = readByte(operand);
+}
+
 // 0xfb
 void ei(void){
 	interrupt.master = 1;
@@ -248,6 +363,11 @@ void ei(void){
 // 0xf3
 void di(void){
 	interrupt.master = 0;
+}
+
+// 0xf5
+void push_af(void){
+	writeShortToStack(regs.af);
 }
 
 // 0xfe
@@ -271,7 +391,7 @@ void cp_n(unsigned char operand){
 }
 
 
-struct instruction instructions[] = {
+struct instruction instructions[256] = {
 	{"NOP",0,(void *)&nop},			//0x00
 	{"LD BC, 0x%04X",2,(void *)&ld_bc_nn},		//0x01
 	{"LD (BC), A",0,NULL},			//0x02
@@ -312,19 +432,19 @@ struct instruction instructions[] = {
 	{"DEC H",0,NULL},				//0x25
 	{"LD H, 0x%02x",1,NULL},		//0x26
 	{"DAA",0,NULL},					//0x27
-	{"JR Z, 0x%02x",1,NULL},		//0x28
+	{"JR Z, 0x%02x",1,(void *)jr_z_n},		//0x28
 	{"ADD HL, HL",0,NULL},			//0x29
 	{"LDI A, (HL)",0,(void *)&ldi_a_hl},			//0x2a
 	{"DEC HL",0,NULL},				//0x2b
 	{"INC L",0,NULL},				//0x2c
 	{"DEC L",0,NULL},				//0x2d
 	{"LD L, 0x%02x",1,NULL},		//0x2e
-	{"CPL",0,NULL},					//0x2f
+	{"CPL",0,(void *)&cpl},					//0x2f
 	{"JR NC, 0x%02x",1,NULL},		//0x30
 	{"LD SP, 0x%04x",2,(void *)&ld_sp_nn},		//0x31
 	{"LDD (HL), A",0,(void *)&ldd_hl_a},			//0x32
 	{"INC SP",0,NULL},				//0x33
-	{"INC (HL)",0,NULL},			//0x34
+	{"INC (HL)",0,(void *)&inc_hl},			//0x34
 	{"DEC (HL)",0,NULL},			//0x35
 	{"LD (HL), 0x%02x",1,(void *)&ld_hl_n},		//0x36
 	{"CCF",0,NULL},					//0x37
@@ -332,8 +452,8 @@ struct instruction instructions[] = {
 	{"ADD HL, SP",0,NULL},			//0x39
 	{"LDD A, (HL)",0,NULL},			//0x3a
 	{"DEC SP",0,NULL},				//0x3b
-	{"INC A",0,NULL},				//0x3c
-	{"DEC A",0,NULL},				//0x3d
+	{"INC A",0,(void *)&inc_a},				//0x3c
+	{"DEC A",0,(void *)&dec_a},				//0x3d
 	{"LD A, 0x%02x",1,(void *)&ld_a_n},		//0x3e
 	{"CCF",0,NULL},					//0x3f
 	{"LD B, B",0,NULL},				//0x40
@@ -439,7 +559,7 @@ struct instruction instructions[] = {
 	{"AND H",0,NULL},				//0xa4
 	{"AND L",0,NULL},				//0xa5
 	{"AND (HL)",0,NULL},			//0xa6
-	{"AND A",0,NULL},				//0xa7
+	{"AND A",0,(void *)&and_a},				//0xa7
 	{"XOR B",0,NULL},				//0xa8
 	{"XOR C",0,NULL},				//0xa9
 	{"XOR D",0,NULL},				//0xaa
@@ -464,32 +584,32 @@ struct instruction instructions[] = {
 	{"CP L",0,NULL},				//0xbd
 	{"CP (HL)",0,NULL},				//0xbe
 	{"CP A",0,NULL},				//0xbf
-	{"RET NZ",0,NULL},				//0xc0
-	{"POP BC",0,NULL},				//0xc1
+	{"RET NZ",0,(void *)&ret_nz},				//0xc0
+	{"POP BC",0,(void *)&pop_bc},				//0xc1
 	{"JP NZ, 0x%04x",2,NULL},		//0xc2
 	{"JP 0x%04x",2,(void *)&jp_nn},			//0xc3
 	{"CALL NZ, 0x%04x",2,NULL},		//0xc4
-	{"PUSH BC",0,NULL},				//0xc5
+	{"PUSH BC",0,(void *)&push_bc},				//0xc5
 	{"ADD A, 0x%02x",1,NULL},		//0xc6
 	{"RST 0x00",0,NULL},			//0xc7
-	{"RET Z",0,NULL},				//0xc8
+	{"RET Z",0,(void *)&ret_z},				//0xc8
 	{"RET",0,(void *)&ret},					//0xc9
 	{"JP Z, 0x%04x",2,NULL},		//0xca
-	{"CB %02x",1,NULL},				//0xcb
+	{"CB 0x%02x",1,(void *)&cbEmulation},				//0xcb
 	{"CALL Z, 0x%04x",2,NULL},		//0xcc
 	{"CALL 0x%04x",2,(void *)&call_nn},			//0xcd
 	{"ADC 0x%20x",1,NULL},			//0xce
 	{"RST 0x08",0,NULL},			//0xcf
 	{"RET NC",0,NULL},				//0xd0
-	{"POP DE",0,NULL},				//0xd1
+	{"POP DE",0,(void *)&pop_de},				//0xd1
 	{"JP NC, 0x%04x",2,NULL},		//0xd2
 	{"UNKNOWN",0,NULL},				//0xd3
 	{"CALL NC, 0x%04x",2,NULL},		//0xd4
-	{"PUSH DE",0,NULL},				//0xd5
+	{"PUSH DE",0,(void *)&push_de},				//0xd5
 	{"SUB 0x%20x",1,NULL},			//0xd6
 	{"RST 0x10",0,NULL},			//0xd7
 	{"RET C",0,NULL},				//0xd8
-	{"RETI",0,NULL},				//0xd9
+	{"RETI",0,(void *)&reti},				//0xd9
 	{"JP C, 0x%04x",2,NULL},		//0xda
 	{"UNKNOWN",0,NULL},				//0xdb
 	{"CALL C, 0x%04x",2,NULL},		//0xdc
@@ -497,12 +617,12 @@ struct instruction instructions[] = {
 	{"SBC 0x%02x",1,NULL},			//0xde
 	{"RST 0x18",0,NULL},			//0xdf
 	{"LD (0xff00 + 0x%02x), A",1,(void *)&ldh_n_a},	//0xe0
-	{"POP HL",0,NULL},					//0xe1
+	{"POP HL",0,(void *)&pop_hl},					//0xe1
 	{"LD (0xff00 + C), A",0,(void *)&ldh_c_a},		//0xe2
 	{"UNKNOWN",0,NULL},					//0xe3
 	{"UNKNOWN",0,NULL},					//0xe4
-	{"PUSH HL",0,NULL},					//0xe5
-	{"AND 0x%20x",1,NULL},				//0xe6
+	{"PUSH HL",0,(void *)&push_hl},					//0xe5
+	{"AND 0x%02x",1,(void *)&and_n},				//0xe6
 	{"RST 0x20",0,NULL},				//0xe7
 	{"ADD SP, 0x%02x",1,NULL},			//0xe8
 	{"JP HL",0,NULL},					//0xe9
@@ -513,16 +633,16 @@ struct instruction instructions[] = {
 	{"XOR 0x%02x",1,NULL},				//0xee
 	{"RST 0x28",0,NULL},				//0xef
 	{"LD A, (0xff00 + 0x%02x)",1,(void *)&ldh_a_n},	//0xf0
-	{"POP AF",0,NULL},					//0xf1
+	{"POP AF",0,(void *)&pop_af},					//0xf1
 	{"LD A, (0xff00 + C)",0,NULL},		//0xf2
 	{"DI",0,(void *)di},						//0xf3
 	{"UNKNOWN",0,NULL},					//0xf4
-	{"PUSH AF",0,NULL},					//0xf5
+	{"PUSH AF",0,(void *)&push_af},					//0xf5
 	{"OR 0x%02x",1,NULL},				//0xf6
 	{"RST 0x30",0,NULL},				//0xf7
 	{"LD HL, SP+0x%02x",1,NULL},		//0xf8
 	{"LD SP, HL",0,NULL},				//0xf9
-	{"LD A, (0x%04x)",2,NULL},			//0xfa
+	{"LD A, (0x%04x)",2,(void *)&ld_a_nn},			//0xfa
 	{"EI",0,(void *)&ei},						//0xfb
 	{"UNKNOWN",0,NULL},					//0xfc
 	{"UNKNOWN",0,NULL},					//0xfd
