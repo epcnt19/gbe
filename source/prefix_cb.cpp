@@ -5,6 +5,26 @@
 #include "input.h"
 #include "prefix_cb.h"
 
+
+unsigned char swap(unsigned char value){
+	// swapping for high 4-bit and low 4-bit
+	value = ((value & 0x0f) << 4) | ((value & 0xf0) >> 4);
+
+	if(value){
+		FLAGS_CLEAR(FLAGS_ZERO);
+	}else{
+		FLAGS_SET(FLAGS_ZERO);
+	}
+
+	FLAGS_CLEAR(FLAGS_NEGATIVE | FLAGS_HALFCARRY | FLAGS_CARRY);
+	return value;
+}
+
+// 0x37
+void swap_a(void){
+	regs.a = swap(regs.a);
+}
+
 struct cbInstruction cbInstructions[256] = {
 	{ "RLC B", NULL },           // 0x00
 	{ "RLC C", NULL },           // 0x01
@@ -61,7 +81,7 @@ struct cbInstruction cbInstructions[256] = {
 	{ "SWAP H", NULL },         // 0x34
 	{ "SWAP L", NULL },         // 0x35
 	{ "SWAP (HL)", NULL },    // 0x36
-	{ "SWAP A", NULL },         // 0x37
+	{ "SWAP A", (void *)&swap_a},         // 0x37
 	{ "SRL B", NULL },           // 0x38
 	{ "SRL C", NULL },           // 0x39
 	{ "SRL D", NULL },           // 0x3a
@@ -269,5 +289,5 @@ void cbEmulation(unsigned char opcode){
 	printf("\t\t opcode: 0x%02x, operand: None \t[",opcode);
 	printf(cbInstructions[opcode].disassembly,opcode);
 	printf("]\n");
-	((void (*)(void))instructions[opcode].handler)();
+	((void (*)(void))cbInstructions[opcode].handler)();
 }

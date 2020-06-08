@@ -5,26 +5,12 @@
 #include "input.h"
 #include "prefix_cb.h"
 
-#define FLAGS_ZERO (1 << 7)
-#define FLAGS_NEGATIVE (1 << 6)
-#define FLAGS_HALFCARRY (1 << 5)
-#define FLAGS_CARRY (1 << 4)
-
-#define FLAGS_ISZERO (regs.f & FLAGS_ZERO)
-#define FLAGS_ISNEGATIVE (regs.f & FLAGS_NEGATIVE)
-#define FLAGS_ISCARRY (regs.f & FLAGS_CARRY)
-#define FLAGS_ISHALFCARRY (regs.f & FLAGS_HALFCARRY)
-
-#define FLAGS_ISSET(x) (regs.f & (x))
-#define FLAGS_SET(x) (regs.f |= (x))
-#define FLAGS_CLEAR(x) (regs.f &= ~(x))
-
 //how to use: regs.af = 0xdead;
 struct registers regs;
 struct interrupt interrupt;
 unsigned long ticks;
-
 bool break_point = false;
+
 
 unsigned char calc_inc(unsigned char value){
 	if(value & 0x0f){
@@ -218,9 +204,49 @@ void ld_a_n(unsigned char operand){
 	regs.a = operand;
 }
 
+// 0x47
+void ld_b_a(void){
+	regs.b = regs.a;
+}
+
 // 0x78
 void ld_a_b(void){
 	regs.a = regs.b;
+}
+
+// 0xa0
+void and_b(void){
+	calc_and(regs.b);
+}
+
+// 0xa1
+void and_c(void){
+	calc_and(regs.c);
+}
+
+// 0xa2
+void and_d(void){
+	calc_and(regs.d);
+}
+
+// 0xa3
+void and_e(void){
+	calc_and(regs.e);
+}
+
+// 0xa4
+void and_h(void){
+	calc_and(regs.h);
+}
+
+// 0xa5
+void and_l(void){
+	calc_and(regs.l);
+}
+
+// 0xa6
+void and_hl(void){
+	calc_and(readByte(regs.hl));
 }
 
 // 0xa7
@@ -233,9 +259,44 @@ void xor_a(void){
 	calc_xor(regs.a);
 }
 
+// 0xb0
+void or_b(void){
+	calc_or(regs.b);
+}
+
 // 0xb1
 void or_c(void){
 	calc_or(regs.c);
+}
+
+// 0xb2
+void or_d(void){
+	calc_or(regs.d);
+}
+
+// 0xb3
+void or_e(void){
+	calc_or(regs.e);
+}
+
+// 0xb4
+void or_h(void){
+	calc_or(regs.h);
+}
+
+// 0xb5
+void or_l(void){
+	calc_or(regs.l);
+}
+
+// 0xb6
+void or_hl(void){
+	calc_or(readByte(regs.hl));
+}
+
+// 0xb7
+void or_a(void){
+	calc_or(regs.a);
 }
 
 // 0xc0
@@ -463,7 +524,7 @@ struct instruction instructions[256] = {
 	{"LD B, H",0,NULL},				//0x44
 	{"LD B, L",0,NULL},				//0x45
 	{"LD B, (HL)",0,NULL},			//0x46
-	{"LD B, A",0,NULL},				//0x47
+	{"LD B, A",0,(void *)&ld_b_a},				//0x47
 	{"LD C, B",0,NULL},				//0x48
 	{"LD C, C",0,NULL},				//0x49
 	{"LD C, D",0,NULL},				//0x4a
@@ -552,13 +613,13 @@ struct instruction instructions[256] = {
 	{"SBC L",0,NULL},				//0x9d
 	{"SBC (HL)",0,NULL},			//0x9e
 	{"SBC A",0,NULL},				//0x9f
-	{"AND B",0,NULL},				//0xa0
-	{"AND C",0,NULL},				//0xa1
-	{"AND D",0,NULL},				//0xa2
-	{"AND E",0,NULL},				//0xa3
-	{"AND H",0,NULL},				//0xa4
-	{"AND L",0,NULL},				//0xa5
-	{"AND (HL)",0,NULL},			//0xa6
+	{"AND B",0,(void *)&and_b},				//0xa0
+	{"AND C",0,(void *)&and_c},				//0xa1
+	{"AND D",0,(void *)&and_d},				//0xa2
+	{"AND E",0,(void *)&and_e},				//0xa3
+	{"AND H",0,(void *)&and_h},				//0xa4
+	{"AND L",0,(void *)&and_l},				//0xa5
+	{"AND (HL)",0,(void *)&and_hl},			//0xa6
 	{"AND A",0,(void *)&and_a},				//0xa7
 	{"XOR B",0,NULL},				//0xa8
 	{"XOR C",0,NULL},				//0xa9
@@ -568,14 +629,14 @@ struct instruction instructions[256] = {
 	{"XOR L",0,NULL},				//0xad
 	{"XOR (HL)",0,NULL},			//0xae
 	{"XOR A",0,(void *)&xor_a},				//0xaf
-	{"OR B",0,NULL},				//0xb0
+	{"OR B",0,(void *)&or_b},				//0xb0
 	{"OR C",0,(void *)&or_c},				//0xb1
-	{"OR D",0,NULL},				//0xb2
-	{"OR E",0,NULL},				//0xb3
-	{"OR H",0,NULL},				//0xb4
-	{"OR L",0,NULL},				//0xb5
-	{"OR (HL)",0,NULL},				//0xb6
-	{"OR A",0,NULL},				//0xb7
+	{"OR D",0,(void *)&or_d},				//0xb2
+	{"OR E",0,(void *)&or_e},				//0xb3
+	{"OR H",0,(void *)&or_h},				//0xb4
+	{"OR L",0,(void *)&or_l},				//0xb5
+	{"OR (HL)",0,(void *)&or_hl},				//0xb6
+	{"OR A",0,(void *)&or_a},				//0xb7
 	{"CP B",0,NULL},				//0xb8
 	{"CP C",0,NULL},				//0xb9
 	{"CP D",0,NULL},				//0xba
