@@ -207,6 +207,13 @@ int main(void){
 
 	reset();
 
+	// for debug
+	int count_done = 0;
+	for(int i=0;i<256;i++)
+		if(instructions[i].handler != NULL)
+			count_done++;		
+	printf("current number of cpu instructions: %d/256\n",count_done);
+	
 	while(1){
 		SDL_Event keyEvent;
 		SDL_RenderClear(renderer);

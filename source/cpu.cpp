@@ -52,6 +52,61 @@ unsigned char calc_dec(unsigned char value){
 }
 
 
+void calc_add(unsigned char *dst_value,unsigned char src_value){
+	unsigned int result;
+	result = *dst_value + src_value;
+	
+	// checking full-carry (overflow)
+	if(result & 0xff00)
+		FLAGS_SET(FLAGS_CARRY);
+	else
+		FLAGS_CLEAR(FLAGS_CARRY);
+
+	// get result (1 byte)
+	*dst_value = (unsigned char)(0xff00 & result);
+
+	// checking zero
+	if(*dst_value)
+		FLAGS_CLEAR(FLAGS_ZERO);
+	else
+		FLAGS_SET(FLAGS_ZERO);
+
+	// check half-carry
+	if(((*dst_value & 0x0f) + (src_value & 0x0f)) > 0x0f)
+		FLAGS_SET(FLAGS_HALFCARRY);
+	else
+		FLAGS_CLEAR(FLAGS_HALFCARRY);
+
+	FLAGS_CLEAR(FLAGS_NEGATIVE);
+}
+
+
+void calc_sub(unsigned char value){
+	
+	// checking full-carry
+	if(value > regs.a)
+		FLAGS_SET(FLAGS_CARRY);
+	else
+		FLAGS_CLEAR(FLAGS_CARRY);
+	
+	// checking half-carry
+	if((value & 0x0f) > (regs.a & 0x0f))
+		FLAGS_SET(FLAGS_HALFCARRY);
+	else
+		FLAGS_CLEAR(FLAGS_HALFCARRY);
+
+	regs.a -= value;
+
+	// checking zero
+	if(regs.a)
+		FLAGS_CLEAR(FLAGS_ZERO);
+	else
+		FLAGS_SET(FLAGS_ZERO);
+	
+	FLAGS_SET(FLAGS_NEGATIVE);
+}
+
+
 void calc_and(unsigned char value){
 	regs.a &= value;
 	
@@ -204,14 +259,195 @@ void ld_a_n(unsigned char operand){
 	regs.a = operand;
 }
 
+// 0x40: nop
+
+// 0x41
+void ld_b_c(void){
+	regs.b = regs.c;
+}
+
+// 0x42
+void ld_b_d(void){
+	regs.b = regs.d;
+}
+
+// 0x43
+void ld_b_e(void){
+	regs.b = regs.e;
+}
+
+// 0x44
+void ld_b_h(void){
+	regs.b = regs.h;
+}
+
+// 0x45
+void ld_b_l(void){
+	regs.b = regs.l;
+}
+
+// 0x46
+void ld_b_hl(void){
+	regs.b = readByte(regs.hl);
+}
+
 // 0x47
 void ld_b_a(void){
 	regs.b = regs.a;
 }
 
+// 0x48
+void ld_c_b(void){
+	regs.c = regs.b;
+}
+
+// 0x49: nop
+
+// 0x4a
+void ld_c_d(void){
+	regs.c = regs.d;
+}
+
+// 0x4b
+void ld_c_e(void){
+	regs.c = regs.e;
+}
+
+// 0x4c
+void ld_c_h(void){
+	regs.c = regs.h;
+}
+
+// 0x4d
+void ld_c_l(void){
+	regs.c = regs.l;
+}
+
+// 0x4e
+void ld_c_hl(void){
+	regs.c = readByte(regs.hl);
+}
+
+// 0x4f
+void ld_c_a(void){
+	regs.c = regs.a;
+}
+
 // 0x78
 void ld_a_b(void){
 	regs.a = regs.b;
+}
+
+// 0x79
+void ld_a_c(void){
+	regs.a = regs.c;
+}
+
+// 0x7a
+void ld_a_d(void){
+	regs.a = regs.d;
+}
+
+// 0x7b
+void ld_a_e(void){
+	regs.a = regs.e;
+}
+
+// 0x7c
+void ld_a_h(void){
+	regs.a = regs.h;
+}
+
+// 0x7d
+void ld_a_l(void){
+	regs.a = regs.l;
+}
+
+// 0x7e
+void ld_a_hl(void){
+	regs.a = readByte(regs.hl);
+}
+
+// 0x7f: nop
+
+//0x80
+void add_a_b(void){
+	calc_add(&regs.a,regs.b);
+}
+
+//0x81
+void add_a_c(void){
+	calc_add(&regs.a,regs.c);
+}
+
+//0x82
+void add_a_d(void){
+	calc_add(&regs.a,regs.d);
+}
+
+//0x83
+void add_a_e(void){
+	calc_add(&regs.a,regs.e);
+}
+
+//0x84
+void add_a_h(void){
+	calc_add(&regs.a,regs.h);
+}
+
+//0x85
+void add_a_l(void){
+	calc_add(&regs.a,regs.l);
+}
+
+//0x86
+void add_a_hl(void){
+	calc_add(&regs.a,readByte(regs.hl));
+}
+
+//0x87
+void add_a_a(void){
+	calc_add(&regs.a,regs.a);
+}
+
+//0x90
+void sub_a_b(void){
+	calc_sub(regs.b);
+}
+
+//0x91
+void sub_a_c(void){
+	calc_sub(regs.c);
+}
+
+//0x92
+void sub_a_d(void){
+	calc_sub(regs.d);
+}
+
+//0x93
+void sub_a_e(void){
+	calc_sub(regs.e);
+}
+
+//0x94
+void sub_a_h(void){
+	calc_sub(regs.h);
+}
+
+//0x95
+void sub_a_l(void){
+	calc_sub(regs.l);
+}
+
+//0x96
+void sub_a_hl(void){
+	calc_sub(readByte(regs.hl));
+}
+
+//0x97
+void sub_a_a(void){
+	calc_sub(regs.a);
 }
 
 // 0xa0
@@ -252,6 +488,41 @@ void and_hl(void){
 // 0xa7
 void and_a(void){
 	calc_and(regs.a);
+}
+
+// 0xa8
+void xor_b(void){
+	calc_xor(regs.b);
+}
+
+// 0xa9
+void xor_c(void){
+	calc_xor(regs.c);
+}
+
+// 0xaa
+void xor_d(void){
+	calc_xor(regs.d);
+}
+
+// 0xab
+void xor_e(void){
+	calc_xor(regs.e);
+}
+
+// 0xac
+void xor_h(void){
+	calc_xor(regs.h);
+}
+
+// 0xad
+void xor_l(void){
+	calc_xor(regs.l);
+}
+
+// 0xae
+void xor_hl(void){
+	calc_xor(readByte(regs.hl));
 }
 
 // 0xaf
@@ -348,6 +619,12 @@ void push_bc(void){
 	writeShortToStack(regs.bc);
 }
 
+// 0xcf
+void rst_8(void){
+	writeShortToStack(regs.pc);
+	regs.pc = 0x0008;
+}
+
 // 0xd1
 void pop_de(void){
 	regs.de = readShortFromStack();		
@@ -362,6 +639,12 @@ void push_de(void){
 void reti(void){
 	interrupt.master = 1;
 	regs.pc = readShortFromStack();
+}
+
+// 0xdf
+void rst_18(void){
+	writeShortToStack(regs.pc);
+	regs.pc = 0x0018;
 }
 
 // 0xe0
@@ -399,6 +682,12 @@ void and_n(unsigned char operand){
 // 0xea
 void ld_nn_a(unsigned short operand){
 	writeByte(operand,regs.a);
+}
+
+// 0xef
+void rst_28(void){
+	writeShortToStack(regs.pc);
+	regs.pc = 0x0028;
 }
 
 // 0xf0
@@ -449,6 +738,12 @@ void cp_n(unsigned char operand){
 		FLAGS_SET(FLAGS_CARRY);
 	else
 		FLAGS_CLEAR(FLAGS_CARRY);
+}
+
+// 0xff
+void rst_38(void){
+	writeShortToStack(regs.pc);
+	regs.pc = 0x0038;
 }
 
 
@@ -517,22 +812,22 @@ struct instruction instructions[256] = {
 	{"DEC A",0,(void *)&dec_a},				//0x3d
 	{"LD A, 0x%02x",1,(void *)&ld_a_n},		//0x3e
 	{"CCF",0,NULL},					//0x3f
-	{"LD B, B",0,NULL},				//0x40
-	{"LD B, C",0,NULL},				//0x41
-	{"LD B, D",0,NULL},				//0x42
-	{"LD B, E",0,NULL},				//0x43
-	{"LD B, H",0,NULL},				//0x44
-	{"LD B, L",0,NULL},				//0x45
-	{"LD B, (HL)",0,NULL},			//0x46
+	{"LD B, B",0,(void *)&nop},				//0x40
+	{"LD B, C",0,(void *)&ld_b_c},				//0x41
+	{"LD B, D",0,(void *)&ld_b_d},				//0x42
+	{"LD B, E",0,(void *)&ld_b_e},				//0x43
+	{"LD B, H",0,(void *)&ld_b_h},				//0x44
+	{"LD B, L",0,(void *)&ld_b_l},				//0x45
+	{"LD B, (HL)",0,(void *)&ld_b_hl},			//0x46
 	{"LD B, A",0,(void *)&ld_b_a},				//0x47
-	{"LD C, B",0,NULL},				//0x48
-	{"LD C, C",0,NULL},				//0x49
-	{"LD C, D",0,NULL},				//0x4a
-	{"LD C, E",0,NULL},				//0x4b
-	{"LD C, H",0,NULL},				//0x4c
-	{"LD C, L",0,NULL},				//0x4d
-	{"LD C, (HL)",0,NULL},			//0x4e
-	{"LD C, A",0,NULL},				//0x4f
+	{"LD C, B",0,(void *)&ld_c_a},				//0x48
+	{"LD C, C",0,(void *)&nop},				//0x49
+	{"LD C, D",0,(void *)&ld_c_d},				//0x4a
+	{"LD C, E",0,(void *)&ld_c_e},				//0x4b
+	{"LD C, H",0,(void *)&ld_c_h},				//0x4c
+	{"LD C, L",0,(void *)&ld_c_l},				//0x4d
+	{"LD C, (HL)",0,(void *)&ld_c_hl},			//0x4e
+	{"LD C, A",0,(void *)&ld_c_a},				//0x4f
 	{"LD D, B",0,NULL},				//0x50
 	{"LD D, C",0,NULL},				//0x51
 	{"LD D, D",0,NULL},				//0x52
@@ -574,21 +869,21 @@ struct instruction instructions[256] = {
 	{"HALT",0,NULL},				//0x76
 	{"LD (HL), A",0,NULL},			//0x77
 	{"LD A, B",0,(void *)&ld_a_b},				//0x78
-	{"LD A, C",0,NULL},				//0x79
-	{"LD A, D",0,NULL},				//0x7a
-	{"LD A, E",0,NULL},				//0x7b
-	{"LD A, H",0,NULL},				//0x7c
-	{"LD A, L",0,NULL},				//0x7d
-	{"LD A, (HL)",0,NULL},			//0x7e
-	{"LD A, A",0,NULL},				//0x7f
-	{"ADD A, B",0,NULL},			//0x80
-	{"ADD A, C",0,NULL},			//0x81
-	{"ADD A, D",0,NULL},			//0x82
-	{"ADD A, E",0,NULL},			//0x83
-	{"ADD A, H",0,NULL},			//0x84
-	{"ADD A, L",0,NULL},			//0x85
-	{"ADD A, (HL)",0,NULL},			//0x86
-	{"ADD A",0,NULL},				//0x87
+	{"LD A, C",0,(void *)&ld_a_c},				//0x79
+	{"LD A, D",0,(void *)&ld_a_d},				//0x7a
+	{"LD A, E",0,(void *)&ld_a_e},				//0x7b
+	{"LD A, H",0,(void *)&ld_a_h},				//0x7c
+	{"LD A, L",0,(void *)&ld_a_l},				//0x7d
+	{"LD A, (HL)",0,(void *)&ld_a_hl},			//0x7e
+	{"LD A, A",0,(void *)&nop},				//0x7f
+	{"ADD A, B",0,(void *)&add_a_b},			//0x80
+	{"ADD A, C",0,(void *)&add_a_c},			//0x81
+	{"ADD A, D",0,(void *)&add_a_d},			//0x82
+	{"ADD A, E",0,(void *)&add_a_e},			//0x83
+	{"ADD A, H",0,(void *)&add_a_h},			//0x84
+	{"ADD A, L",0,(void *)&add_a_l},			//0x85
+	{"ADD A, (HL)",0,(void *)&add_a_hl},			//0x86
+	{"ADD A, A",0,(void *)&add_a_a},				//0x87
 	{"ADD B",0,NULL},				//0x88
 	{"ADD C",0,NULL},				//0x89
 	{"ADD D",0,NULL},				//0x8a
@@ -597,14 +892,14 @@ struct instruction instructions[256] = {
 	{"ADD L",0,NULL},				//0x8d
 	{"ADD (HL)",0,NULL},			//0x8e
 	{"ADC A",0,NULL},				//0x8f
-	{"SUB B",0,NULL},				//0x90
-	{"SUB C",0,NULL},				//0x91
-	{"SUB D",0,NULL},				//0x92
-	{"SUB E",0,NULL},				//0x93
-	{"SUB H",0,NULL},				//0x94
-	{"SUB L",0,NULL},				//0x95
-	{"SUB (HL)",0,NULL},			//0x96
-	{"SUB A",0,NULL},				//0x97
+	{"SUB A, B",0,(void *)&sub_a_b},				//0x90
+	{"SUB A, C",0,(void *)&sub_a_c},				//0x91
+	{"SUB A, D",0,(void *)&sub_a_d},				//0x92
+	{"SUB A, E",0,(void *)&sub_a_e},				//0x93
+	{"SUB A, H",0,(void *)&sub_a_h},				//0x94
+	{"SUB A, L",0,(void *)&sub_a_l},				//0x95
+	{"SUB A, (HL)",0,(void *)&sub_a_hl},			//0x96
+	{"SUB A, A",0,(void *)&sub_a_a},				//0x97
 	{"SBC B",0,NULL},				//0x98
 	{"SBC C",0,NULL},				//0x99
 	{"SBC D",0,NULL},				//0x9a
@@ -621,13 +916,13 @@ struct instruction instructions[256] = {
 	{"AND L",0,(void *)&and_l},				//0xa5
 	{"AND (HL)",0,(void *)&and_hl},			//0xa6
 	{"AND A",0,(void *)&and_a},				//0xa7
-	{"XOR B",0,NULL},				//0xa8
-	{"XOR C",0,NULL},				//0xa9
-	{"XOR D",0,NULL},				//0xaa
-	{"XOR E",0,NULL},				//0xab
-	{"XOR H",0,NULL},				//0xac
-	{"XOR L",0,NULL},				//0xad
-	{"XOR (HL)",0,NULL},			//0xae
+	{"XOR B",0,(void *)&xor_b},				//0xa8
+	{"XOR C",0,(void *)&xor_c},				//0xa9
+	{"XOR D",0,(void *)&xor_d},				//0xaa
+	{"XOR E",0,(void *)&xor_e},				//0xab
+	{"XOR H",0,(void *)&xor_h},				//0xac
+	{"XOR L",0,(void *)&xor_l},				//0xad
+	{"XOR (HL)",0,(void *)&xor_hl},			//0xae
 	{"XOR A",0,(void *)&xor_a},				//0xaf
 	{"OR B",0,(void *)&or_b},				//0xb0
 	{"OR C",0,(void *)&or_c},				//0xb1
@@ -660,7 +955,7 @@ struct instruction instructions[256] = {
 	{"CALL Z, 0x%04x",2,NULL},		//0xcc
 	{"CALL 0x%04x",2,(void *)&call_nn},			//0xcd
 	{"ADC 0x%20x",1,NULL},			//0xce
-	{"RST 0x08",0,NULL},			//0xcf
+	{"RST 0x08",0,(void *)&rst_8},			//0xcf
 	{"RET NC",0,NULL},				//0xd0
 	{"POP DE",0,(void *)&pop_de},				//0xd1
 	{"JP NC, 0x%04x",2,NULL},		//0xd2
@@ -676,7 +971,7 @@ struct instruction instructions[256] = {
 	{"CALL C, 0x%04x",2,NULL},		//0xdc
 	{"UNKNOWN",0,NULL},				//0xdd
 	{"SBC 0x%02x",1,NULL},			//0xde
-	{"RST 0x18",0,NULL},			//0xdf
+	{"RST 0x18",0,(void *)&rst_18},			//0xdf
 	{"LD (0xff00 + 0x%02x), A",1,(void *)&ldh_n_a},	//0xe0
 	{"POP HL",0,(void *)&pop_hl},					//0xe1
 	{"LD (0xff00 + C), A",0,(void *)&ldh_c_a},		//0xe2
@@ -692,7 +987,7 @@ struct instruction instructions[256] = {
 	{"UNKNOWN",0,NULL},					//0xec
 	{"UNKNOWN",0,NULL},					//0xed
 	{"XOR 0x%02x",1,NULL},				//0xee
-	{"RST 0x28",0,NULL},				//0xef
+	{"RST 0x28",0,(void *)&rst_28},				//0xef
 	{"LD A, (0xff00 + 0x%02x)",1,(void *)&ldh_a_n},	//0xf0
 	{"POP AF",0,(void *)&pop_af},					//0xf1
 	{"LD A, (0xff00 + C)",0,NULL},		//0xf2
@@ -708,7 +1003,7 @@ struct instruction instructions[256] = {
 	{"UNKNOWN",0,NULL},					//0xfc
 	{"UNKNOWN",0,NULL},					//0xfd
 	{"CP 0x%02x",1,(void *)&cp_n},				//0xfe
-	{"RST 0x38",0,NULL},				//0xff
+	{"RST 0x38",0,(void *)&rst_38},				//0xff
 };
 
 const unsigned char instructionTicks[256] = {
