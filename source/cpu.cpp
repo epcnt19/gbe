@@ -333,6 +333,85 @@ void ld_c_a(void){
 	regs.c = regs.a;
 }
 
+// 0x5f
+void ld_e_a(void){
+	regs.e = regs.a;
+}
+
+// 0x60
+void ld_h_b(void){
+	regs.h = regs.b;
+}
+
+// 0x61
+void ld_h_c(void){
+	regs.h = regs.c;
+}
+
+// 0x62
+void ld_h_d(void){
+	regs.h = regs.d;
+}
+
+// 0x63
+void ld_h_e(void){
+	regs.h = regs.e;
+}
+
+// 0x64: nop
+
+// 0x65
+void ld_h_l(void){
+	regs.h = regs.l;
+}
+
+// 0x66
+void ld_h_hl(void){
+	regs.h = readByte(regs.hl);
+}
+
+// 0x67
+void ld_h_a(void){
+	regs.h = regs.a;
+}
+
+// 0x68
+void ld_l_b(void){
+	regs.l = regs.b;
+}
+
+// 0x69
+void ld_l_c(void){
+	regs.l = regs.c;
+}
+
+// 0x6a
+void ld_l_d(void){
+	regs.l = regs.d;
+}
+
+// 0x6b
+void ld_l_e(void){
+	regs.l = regs.e;
+}
+
+// 0x6c
+void ld_l_h(void){
+	regs.l = regs.h;
+}
+
+// 0x6d: nop
+
+// 0x6e
+void ld_l_hl(void){
+	regs.l = readByte(regs.hl);
+}
+
+// 0x6f
+void ld_l_a(void){
+	regs.l = regs.a;
+}
+
 // 0x78
 void ld_a_b(void){
 	regs.a = regs.b;
@@ -843,23 +922,23 @@ struct instruction instructions[256] = {
 	{"LD E, H",0,NULL},				//0x5c
 	{"LD E, L",0,NULL},				//0x5d
 	{"LD E, (HL)",0,NULL},			//0x5e
-	{"LD E, A",0,NULL},				//0x5f
-	{"LD H, B",0,NULL},				//0x60
-	{"LD H, C",0,NULL},				//0x61
-	{"LD H, D",0,NULL},				//0x62
-	{"LD H, E",0,NULL},				//0x63
-	{"LD H, H",0,NULL},				//0x64
-	{"LD H, L",0,NULL},				//0x65
-	{"LD H, (HL)",0,NULL},			//0x66
-	{"LD H, A",0,NULL},				//0x67
-	{"LD L, B",0,NULL},				//0x68
-	{"LD L, C",0,NULL},				//0x69
-	{"LD L, D",0,NULL},				//0x6a
-	{"LD L, E",0,NULL},				//0x6b
-	{"LD L, H",0,NULL},				//0x6c
-	{"LD L, L",0,NULL},				//0x6d
-	{"LD L, (HL)",0,NULL},			//0x6e
-	{"LD L, A",0,NULL},				//0x6f
+	{"LD E, A",0,(void *)&ld_e_a},				//0x5f
+	{"LD H, B",0,(void *)&ld_h_b},				//0x60
+	{"LD H, C",0,(void *)&ld_h_c},				//0x61
+	{"LD H, D",0,(void *)&ld_h_d},				//0x62
+	{"LD H, E",0,(void *)&ld_h_e},				//0x63
+	{"LD H, H",0,(void *)&nop},				//0x64
+	{"LD H, L",0,(void *)&ld_h_l},				//0x65
+	{"LD H, (HL)",0,(void *)&ld_h_hl},			//0x66
+	{"LD H, A",0,(void *)&nop},				//0x67
+	{"LD L, B",0,(void *)&ld_l_b},				//0x68
+	{"LD L, C",0,(void *)&ld_l_c},				//0x69
+	{"LD L, D",0,(void *)&ld_l_d},				//0x6a
+	{"LD L, E",0,(void *)&ld_l_e},				//0x6b
+	{"LD L, H",0,(void *)&ld_l_h},				//0x6c
+	{"LD L, L",0,(void *)&nop},				//0x6d
+	{"LD L, (HL)",0,(void *)&ld_l_hl},			//0x6e
+	{"LD L, A",0,(void *)&ld_l_a},				//0x6f
 	{"LD (HL), B",0,NULL},			//0x70
 	{"LD (HL), C",0,NULL},			//0x71
 	{"LD (HL), D",0,NULL},			//0x72
