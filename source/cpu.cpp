@@ -52,7 +52,7 @@ unsigned char calc_dec(unsigned char value){
 }
 
 
-void calc_add(unsigned char *dst_value,unsigned char src_value){
+void calc_add_1b(unsigned char *dst_value,unsigned char src_value){
 	unsigned int result;
 	result = *dst_value + src_value;
 	
@@ -70,6 +70,29 @@ void calc_add(unsigned char *dst_value,unsigned char src_value){
 		FLAGS_CLEAR(FLAGS_ZERO);
 	else
 		FLAGS_SET(FLAGS_ZERO);
+
+	// check half-carry
+	if(((*dst_value & 0x0f) + (src_value & 0x0f)) > 0x0f)
+		FLAGS_SET(FLAGS_HALFCARRY);
+	else
+		FLAGS_CLEAR(FLAGS_HALFCARRY);
+
+	FLAGS_CLEAR(FLAGS_NEGATIVE);
+}
+
+
+void calc_add_2b(unsigned short *dst_value,unsigned short src_value){
+	unsigned long result;
+	result = *dst_value + src_value;
+	
+	// checking full-carry (overflow)
+	if(result & 0xffff0000)
+		FLAGS_SET(FLAGS_CARRY);
+	else
+		FLAGS_CLEAR(FLAGS_CARRY);
+
+	// get result (2 byte)
+	*dst_value = (unsigned short)(0xffff & result);
 
 	// check half-carry
 	if(((*dst_value & 0x0f) + (src_value & 0x0f)) > 0x0f)
@@ -184,6 +207,16 @@ void dec_c(void){
 // 0x0e
 void ld_c_n(unsigned char operand){
 	regs.c = operand;
+}
+
+// 0x16
+void ld_d_n(unsigned char operand){
+	regs.d = operand;
+}
+
+// 0x19
+void add_hl_de(void){
+	calc_add_2b(&regs.hl,regs.de);
 }
 
 // 0x20
@@ -451,42 +484,42 @@ void ld_a_hl(void){
 
 //0x80
 void add_a_b(void){
-	calc_add(&regs.a,regs.b);
+	calc_add_1b(&regs.a,regs.b);
 }
 
 //0x81
 void add_a_c(void){
-	calc_add(&regs.a,regs.c);
+	calc_add_1b(&regs.a,regs.c);
 }
 
 //0x82
 void add_a_d(void){
-	calc_add(&regs.a,regs.d);
+	calc_add_1b(&regs.a,regs.d);
 }
 
 //0x83
 void add_a_e(void){
-	calc_add(&regs.a,regs.e);
+	calc_add_1b(&regs.a,regs.e);
 }
 
 //0x84
 void add_a_h(void){
-	calc_add(&regs.a,regs.h);
+	calc_add_1b(&regs.a,regs.h);
 }
 
 //0x85
 void add_a_l(void){
-	calc_add(&regs.a,regs.l);
+	calc_add_1b(&regs.a,regs.l);
 }
 
 //0x86
 void add_a_hl(void){
-	calc_add(&regs.a,readByte(regs.hl));
+	calc_add_1b(&regs.a,readByte(regs.hl));
 }
 
 //0x87
 void add_a_a(void){
-	calc_add(&regs.a,regs.a);
+	calc_add_1b(&regs.a,regs.a);
 }
 
 //0x90
@@ -849,10 +882,10 @@ struct instruction instructions[256] = {
 	{"INC DE",0,NULL},				//0x13
 	{"INC D",0,NULL},				//0x14
 	{"DEC D",0,NULL},				//0x15
-	{"LD D, 0x%02x",1,NULL},		//0x16
+	{"LD D, 0x%02x",1,(void *)&ld_d_n},		//0x16
 	{"RLA",0,NULL},					//0x17
 	{"JR 0x%02x",1,NULL},			//0x18
-	{"ADD HL, DE",0,NULL},			//0x19
+	{"ADD HL, DE",0,(void *)&add_hl_de},			//0x19
 	{"LD A, (DE)",0,NULL},			//0x1a
 	{"DEC DE",0,NULL},				//0x1b
 	{"INC E",0,NULL},				//0x1c
